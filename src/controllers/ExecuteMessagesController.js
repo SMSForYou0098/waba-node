@@ -15,23 +15,27 @@ export const executeMessages = async (req, res) => {
         if (!req.body) {
             return res.status(400).json({ error: 'Missing request body' });
         }
+        console.log('req.io',req.io)
         const { numbers, campaign_id, messagesApi, waToken, messagePayload } = req.body;
         if (!Array.isArray(numbers) || !messagesApi || !waToken || !messagePayload) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
+        const total = numbers.length;
         res.json({ status: true, message: 'Processing started' });
 
         setImmediate(async () => {
-            console.log(`Started processing campaign ${campaign_id} with ${numbers.length} numbers`);
-            const batches = chunkArray(numbers, 10);
-            let reportArray = [];
-            let totalSent = 0;
-            for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-                const batch = batches[batchIndex];
-                console.log(`Processing batch ${batchIndex + 1}/${batches.length} (numbers: ${batch.join(', ')})`);
-                const batchResults = await Promise.allSettled(
-                    batch.map(async (number) => {
+            const io = req.io; // grab socket.io instance
+            const sendChunks = chunkArray(numbers, 20);
+            let resultArray = [];
+
+            let sentCount = 0;
+
+            for (let chunkIndex = 0; chunkIndex < sendChunks.length; chunkIndex++) {
+                const chunk = sendChunks[chunkIndex];
+
+                const chunkResults = await Promise.allSettled(
+                    chunk.map(async (number) => {
                         const replaceNumber = (obj) => {
                             for (const key in obj) {
                                 if (typeof obj[key] === 'string') {
@@ -43,6 +47,7 @@ export const executeMessages = async (req, res) => {
                         };
                         const payloadCopy = JSON.parse(JSON.stringify(messagePayload));
                         replaceNumber(payloadCopy);
+
                         try {
                             const response = await axios.post(messagesApi, payloadCopy, {
                                 headers: {
@@ -50,46 +55,66 @@ export const executeMessages = async (req, res) => {
                                     'Content-Type': 'application/json',
                                 },
                             });
+
                             const msg = response.data?.messages?.[0];
                             if (msg && (msg.message_status === 'accepted' || msg.id)) {
-                                reportArray.push({
+                                resultArray.push({
                                     campaign_id,
                                     message_id: msg.id,
                                     mobile_number: number,
                                     status: 'sent',
                                 });
-                                totalSent++;
-                                console.log(`Message sent to ${number} (total sent: ${totalSent})`);
+                                sentCount++;
+
+                                // 🔥 Emit message progress to frontend
+                                io.to(campaign_id).emit("messageProgress", {
+                                    total,
+                                    sent: sentCount,
+                                    percent: Math.round((sentCount / total) * 100),
+                                });
                             }
-                            return { number, status: 'success', data: response.data };
+
                         } catch (err) {
-                            console.error(`Error sending message to ${number}:`, err.response?.data || err.message);
-                            return { number, status: 'error', error: err.response?.data.error || err.err.response?.data.message };
+                            resultArray.push({
+                                campaign_id,
+                                message_id: null,
+                                mobile_number: number,
+                                status: 'error',
+                                error: err.response?.data?.error || err.message,
+                            });
                         }
                     })
                 );
-                batchResults.forEach((result, idx) => {
-                    if (result.status === 'rejected' || (result.value && result.value.status === 'error')) {
-                        console.error('Batch error for number', batch[idx], result.reason || result.value?.error);
-                    }
-                });
-                console.log(`Finished batch ${batchIndex + 1}/${batches.length}`);
+
                 await new Promise((resolve) => setTimeout(resolve, 1500));
             }
-            // After all batches, send bulk report update
-            if (reportArray.length > 0) {
+
+            // 🔁 Send report progress in chunks
+            const reportChunks = chunkArray(resultArray, 10);
+            for (let i = 0; i < reportChunks.length; i++) {
                 try {
-                    console.log(`Sending bulk report update for campaign ${campaign_id} with ${reportArray.length} reports`);
-                    const bulkPayload = { reports: reportArray };
-                    const bulkResponse = await axios.post('https://waba.smsforyou.biz/api/campaign-report/bulk-update', bulkPayload);
-                    console.log('Bulk report update response:', bulkResponse.data);
+                    await axios.post('https://waba.smsforyou.biz/api/campaign-report/bulk-update', {
+                        reports: reportChunks[i],
+                    });
+
+                    // 🔥 Emit report progress
+                    io.to(campaign_id).emit("reportProgress", {
+                        total: reportChunks.length,
+                        done: i + 1,
+                        percent: Math.round(((i + 1) / reportChunks.length) * 100),
+                    });
+
                 } catch (err) {
                     console.error('Bulk report update error:', err.response?.data || err.message);
                 }
             }
+
             console.log(`Finished processing campaign ${campaign_id}`);
         });
+
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
+
+ 
