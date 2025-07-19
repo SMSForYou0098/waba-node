@@ -66,15 +66,7 @@ export const executeMessages = async (req, res) => {
                                 sentCount++;
 
                                 // 🔥 Emit message progress to frontend
-                                console.log(`Emitting messageProgress to user ${userId}: ${sentCount}/${total}`);
-io.to(userId).emit("messageProgress", {
-    total,
-    sent: sentCount,
-    percent: Math.round((sentCount / total) * 100),
-});
                                 io.to(userId).emit("messageProgress", {
-                                    // total,
-                                    // sent: sentCount,
                                     percent: Math.round((sentCount / total) * 100),
                                 });
 
@@ -104,11 +96,8 @@ io.to(userId).emit("messageProgress", {
                     });
 
                     // 🔥 Emit report progress
-                    console.log(`Emitting reportProgress to user ${userId}: chunk ${i + 1} of ${reportChunks.length}`);
 
                     io.to(userId).emit("reportProgress", {
-                        // total: reportChunks.length,
-                        // done: i + 1,
                         percent: Math.round(((i + 1) / reportChunks.length) * 100),
                     });
 
@@ -117,7 +106,6 @@ io.to(userId).emit("messageProgress", {
                 }
             }
 
-            console.log(`Finished processing campaign ${campaign_id}`);
         });
 
     } catch (error) {
