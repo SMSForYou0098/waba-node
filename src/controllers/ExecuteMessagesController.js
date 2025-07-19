@@ -15,8 +15,7 @@ export const executeMessages = async (req, res) => {
         if (!req.body) {
             return res.status(400).json({ error: 'Missing request body' });
         }
-        console.log('req.io',req.io)
-        const { numbers, campaign_id, messagesApi, waToken, messagePayload } = req.body;
+        const { numbers, campaign_id, messagesApi, waToken, messagePayload,userId } = req.body;
         if (!Array.isArray(numbers) || !messagesApi || !waToken || !messagePayload) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
@@ -67,16 +66,23 @@ export const executeMessages = async (req, res) => {
                                 sentCount++;
 
                                 // 🔥 Emit message progress to frontend
-                                io.to(campaign_id).emit("messageProgress", {
-                                    total,
-                                    sent: sentCount,
+                                console.log(`Emitting messageProgress to user ${userId}: ${sentCount}/${total}`);
+io.to(userId).emit("messageProgress", {
+    total,
+    sent: sentCount,
+    percent: Math.round((sentCount / total) * 100),
+});
+                                io.to(userId).emit("messageProgress", {
+                                    // total,
+                                    // sent: sentCount,
                                     percent: Math.round((sentCount / total) * 100),
                                 });
+
                             }
 
                         } catch (err) {
                             resultArray.push({
-                                campaign_id,
+                                userId,
                                 message_id: null,
                                 mobile_number: number,
                                 status: 'error',
@@ -98,9 +104,11 @@ export const executeMessages = async (req, res) => {
                     });
 
                     // 🔥 Emit report progress
-                    io.to(campaign_id).emit("reportProgress", {
-                        total: reportChunks.length,
-                        done: i + 1,
+                    console.log(`Emitting reportProgress to user ${userId}: chunk ${i + 1} of ${reportChunks.length}`);
+
+                    io.to(userId).emit("reportProgress", {
+                        // total: reportChunks.length,
+                        // done: i + 1,
                         percent: Math.round(((i + 1) / reportChunks.length) * 100),
                     });
 
