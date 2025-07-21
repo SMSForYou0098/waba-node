@@ -20,7 +20,8 @@ const corsOptions = {
       'http://localhost:3000',
       'http://127.0.0.1:3000',
       'http://192.168.0.141:3000',
-      'web.smsforyou.biz'
+      'https://web.smsforyou.biz',
+      'https://horizon.smsforyou.biz',
     ];
 
     if (!origin || allowedOrigins.includes(origin)) {
