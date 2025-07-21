@@ -20,15 +20,61 @@ export const webHook = async (req, res) => {
 
       const phoneNumber = value.metadata?.display_phone_number;
       const userWaId = message?.from;
-      const messageText = message?.text?.body;
+
       const messageType = message?.type;
+      let content = null;
+      switch (messageType) {
+        case 'text':
+          content = message?.text?.body;
+          break;
+        case 'image':
+          content = {
+            id: message?.image?.id,
+            mimeType: message?.image?.mime_type,
+            caption: message?.image?.caption,
+            url: message?.image?.url
+          };
+          break;
+        case 'video':
+          content = {
+            id: message?.video?.id,
+            mimeType: message?.video?.mime_type,
+            caption: message?.video?.caption,
+            url: message?.video?.url
+          };
+          break;
+        case 'document':
+          content = {
+            id: message?.document?.id,
+            mimeType: message?.document?.mime_type,
+            filename: message?.document?.filename,
+            url: message?.document?.url
+          };
+          break;
+        case 'audio':
+          content = {
+            id: message?.audio?.id,
+            mimeType: message?.audio?.mime_type,
+            url: message?.audio?.url
+          };
+          break;
+        default:
+          content = null;
+      }
+
+      // Log all extracted variables
+      console.log('Extracted userWaId:', userWaId);
+      console.log('Extracted contact:', contact);
+      console.log('Extracted phoneNumber:', phoneNumber);
+      console.log('Extracted messageType:', messageType);
+      console.log('Extracted content:', content);
 
       // Compose message object to send via socket
       const payload = {
         from: userWaId,
         name: contact?.profile?.name || 'Unknown',
-        text: messageText,
         type: messageType,
+        content,
         to: phoneNumber,
         timestamp: message?.timestamp,
       };
