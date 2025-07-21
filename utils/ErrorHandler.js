@@ -1,12 +1,20 @@
-
-
 export const ErrorExtractor = (error) => {
+  // Axios-style error
   if (error.response) {
-    return error.response.data.message || error.response.data.error || 'An error occurred';
-  } else if (error.request) {
-    return 'No response received from the server';
-  } else {
-    return error.message || 'An unexpected error occurred';
+    const { data, status } = error.response;
+    return (
+      data?.message ||
+      data?.error ||
+      `Request failed with status ${status}` ||
+      'An unknown server response error occurred'
+    );
   }
-}
- 
+
+  // Network issue or request was made but no response
+  if (error.request) {
+    return 'No response received from the server';
+  }
+
+  // Something happened while setting up the request
+  return error?.message || 'An unexpected error occurred';
+};

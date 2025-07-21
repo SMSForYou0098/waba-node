@@ -106,7 +106,7 @@ app.post('/api/send-data', (req, res) => {
 
 app.use('/api', routes);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
 
 server.listen(PORT, HOST, () => {
