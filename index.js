@@ -15,12 +15,15 @@ const app = express();
 // ✅ Proper CORS setup using frontend URL from .env
 const corsOptions = {
   origin: function (origin, callback) {
+    console.log('origins',origin)
     // Allow requests from localhost and your LAN IP
     const allowedOrigins = [
       'http://localhost:3000',
       'http://127.0.0.1:3000',
       'http://192.168.0.141:3000',
-      'web.smsforyou.biz'
+      'https://web.smsforyou.biz',
+      'https://horizon.smsforyou.biz',
+      // 'horizon'
     ];
 
     if (!origin || allowedOrigins.includes(origin)) {

@@ -4,9 +4,8 @@ export const webHook = async (req, res) => {
   try {
     // Acknowledge first to avoid retries
     res.status(200).send("Received");
-
     const body = req.body;
-
+    console.log('body',body)
     if (
       body?.entry?.length > 0 &&
       body.entry[0]?.changes?.length > 0 &&
@@ -89,6 +88,7 @@ export const webHook = async (req, res) => {
     }
   } catch (error) {
     const errMsg = ErrorExtractor(error);
+    res.status(500).json({ error: errMsg });
     console.error("Webhook processing error:", errMsg);
   }
 };
